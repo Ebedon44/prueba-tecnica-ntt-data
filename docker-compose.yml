@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # 1. BASE DE DATOS 
+  db:
+    image: postgres:15
+    container_name: postgres-db
+    environment:
+      - POSTGRES_USER=user_bank
+      - POSTGRES_PASSWORD=password_bank
+      - POSTGRES_DB=bank_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./BaseDatos/BaseDatos.sql:/docker-entrypoint-initdb.d/BaseDatos.sql
+    networks:
+      - banco-network
+
+  # 2. GESTOR DE MENSAJES (RabbitMQ)
+  rabbitmq-server:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-banco
+    ports:
+      - "5672:5672"   # Puerto de datos para los MS
+      - "15672:15672" # Interfaz Web de administración
+    networks:
+      - banco-network
+
+  # 3. MICROSERVICIO: PERSONA-CLIENTE
+  ms-persona-cliente:
+    build: ./ms-persona-cliente
+    container_name: app-persona-cliente
+    ports:
+      - "8080:8080" 
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/bank_db
+      - SPRING_DATASOURCE_USERNAME=user_bank
+      - SPRING_DATASOURCE_PASSWORD=password_bank
+      - SPRING_RABBITMQ_HOST=rabbitmq-server
+      - SPRING_RABBITMQ_PORT=5672
+    depends_on:
+      - db
+      - rabbitmq-server
+    networks:
+      - banco-network
+
+  # 4. MICROSERVICIO: CUENTA-MOVIMIENTOS
+  ms-cuenta-movimientos:
+    build: ./ms-cuenta-movimientos
+    container_name: app-cuenta-movimientos
+    ports:
+      - "8081:8080" 
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/bank_db
+      - SPRING_DATASOURCE_USERNAME=user_bank
+      - SPRING_DATASOURCE_PASSWORD=password_bank
+      - SPRING_RABBITMQ_HOST=rabbitmq-server
+      - SPRING_RABBITMQ_PORT=5672
+    depends_on:
+      - db
+      - rabbitmq-server
+    networks:
+      - banco-network
+
+volumes:
+  postgres_data:
+
+networks:
+  banco-network:
+    driver: bridge

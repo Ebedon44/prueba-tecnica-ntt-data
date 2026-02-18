@@ -1,0 +1,43 @@
+server:
+
+  port: 8080
+
+spring:
+  application:
+    name: ms-cuenta-movimientos
+
+  webflux:
+    base-path: /api/v1
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bank_db}
+    username: ${SPRING_DATASOURCE_USERNAME:user_bank}
+    password: ${SPRING_DATASOURCE_PASSWORD:password_bank}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Conexion a RabbitMQ
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: guest
+    password: guest
+
+api:
+  client:
+    ms-persona-url: http://app-persona-cliente:8080
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html

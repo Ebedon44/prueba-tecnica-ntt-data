@@ -1,0 +1,329 @@
+openapi: 3.0.3
+info:
+  title: API Cuenta-Movimientos - Reto Técnico NTT DATA
+  version: 1.0.0
+  description: >
+    Microservicio para la gestión de Cuentas y sus Movimientos. 
+    Se comunica de forma síncrona con el MS Persona-Cliente para validar la existencia del cliente, 
+    y de forma asíncrona (RabbitMQ) para reaccionar a la eliminación de clientes.
+  contact:
+    name: Erick Bedón
+    email: alexbedon44@gmail.com
+
+servers:
+  - url: http://localhost:8081/api/v1
+
+tags:
+  - name: Accounts
+    description: Gestión de cuentas bancarias.
+  - name: Movements
+    description: Registro de transacciones.
+  - name: Reports
+    description: Generación de estado de cuenta.
+
+paths:
+  /accounts:
+    get:
+      summary: Obtener todas las cuentas
+      operationId: getAllAccounts
+      tags: [Accounts]
+      responses:
+        '200':
+          description: Lista de cuentas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+    post:
+      summary: Crear una nueva cuenta
+      operationId: createAccount
+      tags: [Accounts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        '201':
+          description: Cuenta creada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: Datos inválidos en la petición.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El Cliente con la identificación proporcionada no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El número de cuenta ya existe.
+
+  /accounts/{accountNumber}:
+    get:
+      summary: Buscar cuenta por Número de Cuenta
+      operationId: getAccountByNumber
+      tags: [Accounts]
+      parameters:
+        - name: accountNumber
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "478758"
+      responses:
+        '200':
+          description: Cuenta encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          description: Cuenta no encontrada.
+
+    put:
+      summary: Actualiza campos en especifico como el estado y tipo de cuenta "Ahorros, Crédito"
+      operationId: updateAccount
+      tags: [Accounts]
+      parameters:
+        - name: accountNumber
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "478758"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        '200':
+          description: Cuenta actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          description: Cuenta no encontrada.
+
+    delete:
+      summary: Eliminar una cuenta
+      operationId: deleteAccount
+      tags: [Accounts]
+      parameters:
+        - name: accountNumber
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "478758"
+      responses:
+        '204':
+          description: Cuenta eliminada exitosamente.
+
+  /movements:
+    get:
+      summary: Obtener todos los movimientos
+      operationId: getAllMovements
+      tags: [Movements]
+      responses:
+        '200':
+          description: Lista de movimientos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movement'
+    post:
+      summary: Registrar un nuevo movimiento
+      operationId: createMovement
+      tags: [Movements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Movement'
+      responses:
+        '201':
+          description: Movimiento registrado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movement'
+        '400':
+          description: Regla de negocio fallida (Ej. Saldo no disponible).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: La cuenta especificada no existe.
+
+  /movements/account/{accountNumber}:
+    get:
+      summary: Obtener movimientos por número de cuenta
+      description: Retorna todos los movimientos asociados a un número de cuenta específico.
+      operationId: getMovementsByAccount
+      tags: [ Movements ]
+      parameters:
+        - in: path
+          name: accountNumber
+          required: true
+          schema:
+            type: string
+          description: El número de la cuenta bancaria
+          example: "12345"
+      responses:
+        '200':
+          description: Lista de movimientos recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movement'
+        '404':
+          description: Cuenta no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reports/{client-id}:
+    get:
+      summary: Generar reporte de estado de cuenta
+      operationId: generateReport
+      tags: [ Reports ]
+      parameters:
+        - name: client-id
+          in: path
+          description: Identificación (Cédula/DNI) del cliente
+          required: true
+          schema:
+            type: string
+            example: "1712345678"
+        - name: startDate
+          in: query
+          description: Fecha de inicio del reporte
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2024-01-01"
+        - name: endDate
+          in: query
+          description: Fecha de fin del reporte
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2026-12-31"
+      responses:
+        '200':
+          description: Reporte generado exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movement'
+
+components:
+  schemas:
+    Account:
+      type: object
+      required:
+        - accountNumber
+        - accountType
+        - initialBalance
+        - customerIdentification
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        accountNumber:
+          type: string
+          description: Número único de la cuenta.
+          example: "478758"
+        accountType:
+          type: string
+          description: Tipo de cuenta (Ahorros o Corriente).
+          example: "Ahorros"
+        initialBalance:
+          type: number
+          format: double
+          description: Saldo con el que se abre la cuenta.
+          example: 2000.00
+        status:
+          type: boolean
+          default: true
+          description: Estado activo o inactivo de la cuenta.
+          example: true
+        customerIdentification:
+          type: string
+          description: Cédula del propietario de la cuenta.
+          example: "1712345678"
+
+    Movement:
+      type: object
+      required:
+        - movementType
+        - amount
+        - accountNumber
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Fecha y hora automática del movimiento.
+        movementType:
+          type: string
+          description: Tipo de transacción (Depósito o Retiro).
+          example: "Retiro"
+        amount:
+          type: number
+          format: double
+          description: Valor del movimiento.
+          example: 10.00
+        balance:
+          type: number
+          format: double
+          readOnly: true
+          description: Saldo resultante.
+          example: 1460.00
+        accountNumber:
+          type: string
+          description: Número de la cuenta a la que pertenece el movimiento.
+          example: "478758"
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Saldo no disponible"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-02-15T12:00:00.000Z"
+        code:
+          type: integer
+          example: 400
